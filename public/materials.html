@@ -10,15 +10,21 @@
   <div class="container">
     <a href="index.html" class="return-btn">Zpět na menu</a>
     <h2>Materiály</h2>
+
     <form id="mat-form">
       <input name="name" placeholder="Název materiálu" required>
       <input name="unit" placeholder="Jednotka" required>
       <input name="price" type="number" step="0.01" placeholder="Cena" required>
       <button type="submit">Přidat</button>
     </form>
+
     <table id="mat-table">
-      <thead><tr><th>ID</th><th>Název</th><th>Jednotka</th><th>Cena</th><th>Akce</th></tr></thead>
-      <tbody></tbody>
+      <thead>
+        <tr><th>ID</th><th>Název</th><th>Jednotka</th><th>Cena</th><th>Akce</th></tr>
+      </thead>
+      <tbody>
+        <!-- Řádky se generují dynamicky -->
+      </tbody>
     </table>
   </div>
   <script src="js/materials.js"></script>
