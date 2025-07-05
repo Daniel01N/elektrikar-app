@@ -12,9 +12,9 @@ async function loadCustomers() {
       <td><button data-id="${c.id}" class="delete-btn">Smazat</button></td>
     </tr>
   `).join('');
-  document.querySelectorAll('.delete-btn').forEach(btn=>{
-    btn.onclick = async ()=> {
-      await fetch(`/api/customers/${btn.dataset.id}`,{ method:'DELETE' });
+  document.querySelectorAll('.delete-btn').forEach(b=>{
+    b.onclick = async ()=> {
+      await fetch(`/api/customers/${b.dataset.id}`, { method:'DELETE' });
       loadCustomers();
     };
   });
@@ -27,9 +27,9 @@ document.getElementById('cust-form').onsubmit = async e => {
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
-      name: f.name.value,
-      phone: f.phone.value,
-      email: f.email.value,
+      name:    f.name.value,
+      phone:   f.phone.value,
+      email:   f.email.value,
       address: f.address.value
     })
   });
