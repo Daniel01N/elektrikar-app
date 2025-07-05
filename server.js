@@ -1,196 +1,200 @@
+// server.js
 const express = require('express');
 const path    = require('path');
-const sqlite3 = require('sqlite3').verbose();
+const db      = require('./db');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-// parsování JSON a servírování statických souborů
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// inicializace SQLite DB
-const db = new sqlite3.Database(path.join(__dirname, 'data.db'), err => {
-  if (err) console.error('DB error:', err);
-  else console.log('DB connected');
-});
-db.serialize(() => {
-  db.run(`CREATE TABLE IF NOT EXISTS customers (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    phone TEXT,
-    email TEXT,
-    address TEXT
-  )`);
-  db.run(`CREATE TABLE IF NOT EXISTS materials (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    unit TEXT NOT NULL,
-    price REAL NOT NULL
-  )`);
-  db.run(`CREATE TABLE IF NOT EXISTS stock (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    material_id INTEGER NOT NULL,
-    quantity REAL NOT NULL,
-    FOREIGN KEY(material_id) REFERENCES materials(id)
-  )`);
-  db.run(`CREATE TABLE IF NOT EXISTS usage (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    customer_id INTEGER NOT NULL,
-    material_id INTEGER NOT NULL,
-    quantity REAL NOT NULL,
-    price REAL NOT NULL,
-    FOREIGN KEY(customer_id) REFERENCES customers(id),
-    FOREIGN KEY(material_id) REFERENCES materials(id)
-  )`);
+// Inicializace tabulek v Postgres
+async function initDb() {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS customers (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      phone TEXT,
+      email TEXT,
+      address TEXT
+    );
+  `);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS materials (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      unit TEXT NOT NULL,
+      price NUMERIC NOT NULL
+    );
+  `);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS stock (
+      id SERIAL PRIMARY KEY,
+      material_id INTEGER REFERENCES materials(id),
+      quantity NUMERIC NOT NULL
+    );
+  `);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS usage (
+      id SERIAL PRIMARY KEY,
+      customer_id INTEGER REFERENCES customers(id),
+      material_id INTEGER REFERENCES materials(id),
+      quantity NUMERIC NOT NULL,
+      price NUMERIC NOT NULL
+    );
+  `);
+}
+initDb().then(() => console.log('✅ DB initialized')).catch(console.error);
+
+// --- ROUTES: CUSTOMERS ---
+app.get('/api/customers', async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT * FROM customers ORDER BY id');
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// === ROUTES: CUSTOMERS ===
-app.get('/api/customers', (req, res) => {
-  db.all('SELECT * FROM customers', (e, rows) =>
-    e ? res.status(500).json({ error: e.message }) : res.json(rows)
-  );
-});
-app.post('/api/customers', (req, res) => {
+app.post('/api/customers', async (req, res) => {
   const { name, phone, email, address } = req.body;
-  db.run(
-    'INSERT INTO customers(name,phone,email,address) VALUES (?,?,?,?)',
-    [name, phone, email, address],
-    function(e) {
-      e ? res.status(500).json({ error: e.message }) : res.json({ id: this.lastID });
-    }
-  );
-});
-app.delete('/api/customers/:id', (req, res) => {
-  db.run(
-    'DELETE FROM customers WHERE id = ?',
-    [req.params.id],
-    function(e) {
-      e ? res.status(500).json({ error: e.message }) : res.json({ deleted: this.changes });
-    }
-  );
+  try {
+    const { rows } = await db.query(
+      'INSERT INTO customers(name,phone,email,address) VALUES($1,$2,$3,$4) RETURNING id',
+      [name, phone, email, address]
+    );
+    res.json({ id: rows[0].id });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// === ROUTES: MATERIALS ===
-app.get('/api/materials', (req, res) => {
-  db.all('SELECT * FROM materials', (e, rows) =>
-    e ? res.status(500).json({ error: e.message }) : res.json(rows)
-  );
+app.delete('/api/customers/:id', async (req, res) => {
+  try {
+    const { rowCount } = await db.query(
+      'DELETE FROM customers WHERE id=$1', [req.params.id]
+    );
+    res.json({ deleted: rowCount });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
-app.post('/api/materials', (req, res) => {
+
+// --- ROUTES: MATERIALS ---
+app.get('/api/materials', async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT * FROM materials ORDER BY id');
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/materials', async (req, res) => {
   const { name, unit, price } = req.body;
-  db.run(
-    'INSERT INTO materials(name,unit,price) VALUES (?,?,?)',
-    [name, unit, price],
-    function(e) {
-      e ? res.status(500).json({ error: e.message }) : res.json({ id: this.lastID });
-    }
-  );
-});
-app.delete('/api/materials/:id', (req, res) => {
-  db.run(
-    'DELETE FROM materials WHERE id = ?',
-    [req.params.id],
-    function(e) {
-      e ? res.status(500).json({ error: e.message }) : res.json({ deleted: this.changes });
-    }
-  );
-});
-app.put('/api/materials/:id', (req, res) => {
-  const { price } = req.body;
-  db.run(
-    'UPDATE materials SET price = ? WHERE id = ?',
-    [price, req.params.id],
-    function(e) {
-      e ? res.status(500).json({ error: e.message }) : res.json({ updated: this.changes });
-    }
-  );
+  try {
+    const { rows } = await db.query(
+      'INSERT INTO materials(name,unit,price) VALUES($1,$2,$3) RETURNING id',
+      [name, unit, price]
+    );
+    res.json({ id: rows[0].id });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// === ROUTES: STOCK ===
-app.get('/api/stock', (req, res) => {
+app.put('/api/materials/:id', async (req, res) => {
+  const { name, unit, price } = req.body;
+  try {
+    const { rowCount } = await db.query(
+      'UPDATE materials SET name=$1,unit=$2,price=$3 WHERE id=$4',
+      [name, unit, price, req.params.id]
+    );
+    res.json({ updated: rowCount });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/materials/:id', async (req, res) => {
+  try {
+    const { rowCount } = await db.query(
+      'DELETE FROM materials WHERE id=$1', [req.params.id]
+    );
+    res.json({ deleted: rowCount });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- ROUTES: STOCK ---
+app.get('/api/stock', async (req, res) => {
   const sql = `
     SELECT s.id, m.name, m.unit, s.quantity
     FROM stock s
     JOIN materials m ON m.id = s.material_id
+    ORDER BY s.id
   `;
-  db.all(sql, [], (e, rows) =>
-    e ? res.status(500).json({ error: e.message }) : res.json(rows)
-  );
-});
-app.post('/api/stock', (req, res) => {
-  const { material_id, quantity } = req.body;
-  db.get(
-    'SELECT id FROM stock WHERE material_id = ?',
-    [material_id],
-    (e, row) => {
-      if (e) return res.status(500).json({ error: e.message });
-      if (row) {
-        db.run(
-          'UPDATE stock SET quantity = quantity + ? WHERE material_id = ?',
-          [quantity, material_id],
-          function(e2) {
-            e2 ? res.status(500).json({ error: e2.message }) : res.json({ id: row.id });
-          }
-        );
-      } else {
-        db.run(
-          'INSERT INTO stock(material_id,quantity) VALUES (?,?)',
-          [material_id, quantity],
-          function(e2) {
-            e2 ? res.status(500).json({ error: e2.message }) : res.json({ id: this.lastID });
-          }
-        );
-      }
-    }
-  );
-});
-app.delete('/api/stock/:id', (req, res) => {
-  db.run(
-    'DELETE FROM stock WHERE id = ?',
-    [req.params.id],
-    function(e) {
-      e ? res.status(500).json({ error: e.message }) : res.json({ deleted: this.changes });
-    }
-  );
+  try {
+    const { rows } = await db.query(sql);
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// === ROUTES: USAGE ===
-app.get('/api/usage/:customer_id', (req, res) => {
+app.post('/api/stock', async (req, res) => {
+  const { material_id, quantity } = req.body;
+  try {
+    // pokud už záznam existuje, aktualizuj množství
+    const { rows } = await db.query(
+      'SELECT id FROM stock WHERE material_id=$1', [material_id]
+    );
+    if (rows.length) {
+      await db.query(
+        'UPDATE stock SET quantity = quantity + $1 WHERE material_id = $2',
+        [quantity, material_id]
+      );
+      res.json({ id: rows[0].id });
+    } else {
+      const ins = await db.query(
+        'INSERT INTO stock(material_id,quantity) VALUES($1,$2) RETURNING id',
+        [material_id, quantity]
+      );
+      res.json({ id: ins.rows[0].id });
+    }
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/stock/:id', async (req, res) => {
+  try {
+    const { rowCount } = await db.query(
+      'DELETE FROM stock WHERE id=$1', [req.params.id]
+    );
+    res.json({ deleted: rowCount });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- ROUTES: USAGE ---
+app.get('/api/usage/:customer_id', async (req, res) => {
   const cid = req.params.customer_id;
   const sql = `
     SELECT u.id, m.name, u.quantity, u.price
     FROM usage u
     JOIN materials m ON m.id = u.material_id
-    WHERE u.customer_id = ?
+    WHERE u.customer_id = $1
+    ORDER BY u.id
   `;
-  db.all(sql, [cid], (e, rows) =>
-    e ? res.status(500).json({ error: e.message }) : res.json(rows)
-  );
+  try {
+    const { rows } = await db.query(sql, [cid]);
+    res.json(rows);
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
-app.post('/api/usage', (req, res) => {
+
+app.post('/api/usage', async (req, res) => {
   const { customer_id, material_id, quantity } = req.body;
-  db.get(
-    'SELECT price FROM materials WHERE id = ?',
-    [material_id],
-    (e, row) => {
-      if (e) return res.status(500).json({ error: e.message });
-      const total = row.price * quantity;
-      db.run(
-        'INSERT INTO usage(customer_id,material_id,quantity,price) VALUES (?,?,?,?)',
-        [customer_id, material_id, quantity, total],
-        function(err) {
-          err ? res.status(500).json({ error: err.message }) : res.json({ id: this.lastID });
-        }
-      );
-    }
-  );
+  try {
+    const p = await db.query(
+      'SELECT price FROM materials WHERE id=$1', [material_id]
+    );
+    const total = Number(p.rows[0].price) * Number(quantity);
+    const ins = await db.query(
+      `INSERT INTO usage(customer_id,material_id,quantity,price)
+       VALUES($1,$2,$3,$4) RETURNING id`,
+      [customer_id, material_id, quantity, total]
+    );
+    res.json({ id: ins.rows[0].id });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// fallback root
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+// fallback
+app.get('/', (req, res) =>
+  res.sendFile(path.join(__dirname, 'public', 'index.html'))
+);
 
-// start
 app.listen(PORT, () => console.log(`Server běží na http://localhost:${PORT}`));
