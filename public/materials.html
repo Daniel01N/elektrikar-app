@@ -3,34 +3,30 @@
 <head>
   <meta charset="UTF-8">
   <title>Materiály</title>
-  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <div class="container">
-    <a href="index.html" class="return-btn">Zpět na menu</a>
+    <a href="index.html" class="return-btn">‹ Zpět</a>
     <h2>Materiály</h2>
-
     <form id="mat-form">
-      <input name="name" placeholder="Název materiálu" required>
+      <input name="name" placeholder="Název" required>
       <input name="unit" placeholder="Jednotka" required>
       <input name="price" type="number" step="0.01" placeholder="Cena" required>
       <button type="submit">Přidat</button>
     </form>
-
     <table id="mat-table">
-  <thead>
-    <tr>
-      <th data-sort="id">ID</th>
-      <th data-sort="name">Název</th>
-      <th data-sort="unit">Jednotka</th>
-      <th data-sort="price">Cena</th>
-      <th>Akce</th>
-    </tr>
-  </thead>
-  <tbody></tbody>
-</table>
-
+      <thead>
+        <tr>
+          <th data-sort="id">ID</th>
+          <th data-sort="name">Název</th>
+          <th data-sort="unit">Jednotka</th>
+          <th data-sort="price">Cena</th>
+          <th>Akce</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
   </div>
   <script src="js/materials.js"></script>
 </body>
