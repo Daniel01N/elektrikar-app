@@ -104,6 +104,20 @@ app.post('/api/materials', (req, res) => {
     }
   );
 });
+// UPDATE – upravit cenu materiálu
+app.put('/api/materials/:id', (req, res) => {
+  const id    = req.params.id;
+  const { price } = req.body;
+  db.run(
+    'UPDATE materials SET price = ? WHERE id = ?',
+    [price, id],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ updated: this.changes });
+    }
+  );
+});
+
 app.delete('/api/materials/:id', (req, res) => {
   db.run(
     'DELETE FROM materials WHERE id = ?',
