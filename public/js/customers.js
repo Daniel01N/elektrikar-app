@@ -9,15 +9,12 @@ async function loadCustomers() {
       <td>${c.phone||''}</td>
       <td>${c.email||''}</td>
       <td>${c.address||''}</td>
-      <td>
-        <button data-id="${c.id}" class="delete-btn">Smazat</button>
-      </td>
+      <td><button data-id="${c.id}" class="delete-btn">Smazat</button></td>
     </tr>
   `).join('');
-
-  document.querySelectorAll('.delete-btn').forEach(btn => {
-    btn.onclick = async () => {
-      await fetch(`/api/customers/${btn.dataset.id}`, { method: 'DELETE' });
+  document.querySelectorAll('.delete-btn').forEach(btn=>{
+    btn.onclick = async ()=> {
+      await fetch(`/api/customers/${btn.dataset.id}`,{ method:'DELETE' });
       loadCustomers();
     };
   });
@@ -26,13 +23,13 @@ async function loadCustomers() {
 document.getElementById('cust-form').onsubmit = async e => {
   e.preventDefault();
   const f = e.target;
-  await fetch('/api/customers', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+  await fetch('/api/customers',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
-      name:    f.name.value,
-      phone:   f.phone.value,
-      email:   f.email.value,
+      name: f.name.value,
+      phone: f.phone.value,
+      email: f.email.value,
       address: f.address.value
     })
   });

@@ -1,168 +1,89 @@
-// materials.js
+let sortBy = 'id', sortAsc = true, editingId = null;
 
-// Načtení a vykreslení tabulky materiálů
 async function loadMaterials() {
   const res  = await fetch('/api/materials');
-  const rows = await res.json();
-  const tb   = document.querySelector('#mat-table tbody');
-  tb.innerHTML = '';
+  let rows    = await res.json();
 
-  rows.forEach(m => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-      <td>${m.id}</td>
-      <td>${m.name}</td>
-      <td>${m.unit}</td>
-      <td>${m.price.toFixed(2)}</td>
-      <td>
-        <button data-id="${m.id}" data-price="${m.price}" class="edit-btn">Upravit</button>
-        <button data-id="${m.id}" class="delete-btn">Smazat</button>
-      </td>
-    `;
-    tb.append(tr);
-  });
-
-  // Zpracování mazání
-  document.querySelectorAll('.delete-btn').forEach(btn => {
-    btn.onclick = async () => {
-      await fetch(`/api/materials/${btn.dataset.id}`, { method: 'DELETE' });
-      loadMaterials();
-    };
-  });
-
-  // Zpracování úpravy ceny
-  document.querySelectorAll('.edit-btn').forEach(btn => {
-    btn.onclick = async () => {
-      const oldPrice = btn.dataset.price;
-      const input = prompt('Zadejte novou cenu materiálu:', oldPrice);
-      if (input === null) return;  // uživatel stiskl Cancel
-      const newPrice = parseFloat(input.replace(',', '.'));
-      if (isNaN(newPrice)) {
-        alert('Neplatná hodnota ceny!');
-        return;
-      }
-      await fetch(`/api/materials/${btn.dataset.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ price: newPrice })
-      });
-      loadMaterials();
-    };
-  });
-}
-
-// Odeslání formuláře pro přidání nového materiálu
-document.getElementById('mat-form').onsubmit = async e => {
-  e.preventDefault();
-  const f = e.target;
-  await fetch('/api/materials', {
-    method: 'POST',
-    headers: { 'Content-Type':'application/json' },
-    body: JSON.stringify({
-      name:  f.name.value.trim(),
-      unit:  f.unit.value.trim(),
-      price: parseFloat(f.price.value)
-    })
-  });
-  f.reset();
-  loadMaterials();
-};
-
-// Inicializace
-loadMaterials();
-let sortBy = 'id';
-let sortAsc = true;
-
-async function loadMaterials() {
-  const res = await fetch('/api/materials');
-  let rows = await res.json();
-
-  // Řazení
+  // řazení
   rows.sort((a, b) => {
-    let valA = a[sortBy];
-    let valB = b[sortBy];
-    if (typeof valA === 'string') valA = valA.toLowerCase();
-    if (typeof valB === 'string') valB = valB.toLowerCase();
-    if (valA < valB) return sortAsc ? -1 : 1;
-    if (valA > valB) return sortAsc ? 1 : -1;
+    let A = a[sortBy], B = b[sortBy];
+    if (typeof A === 'string') A = A.toLowerCase();
+    if (typeof B === 'string') B = B.toLowerCase();
+    if (A < B) return sortAsc ? -1 : 1;
+    if (A > B) return sortAsc ? 1 : -1;
     return 0;
   });
 
   const tb = document.querySelector('#mat-table tbody');
-  tb.innerHTML = '';
-
-  rows.forEach(m => {
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
+  tb.innerHTML = rows.map(m => `
+    <tr>
       <td>${m.id}</td>
       <td>${m.name}</td>
       <td>${m.unit}</td>
-      <td>${m.price.toFixed(2)}</td>
+      <td>${Number(m.price).toFixed(2)}</td>
       <td>
-        <button data-id="${m.id}" data-price="${m.price}" class="edit-btn">Upravit</button>
+        <button data-id="${m.id}" class="edit-btn">Upravit</button>
         <button data-id="${m.id}" class="delete-btn">Smazat</button>
       </td>
-    `;
-    tb.append(tr);
-  });
+    </tr>
+  `).join('');
 
-  // Mazání
-  document.querySelectorAll('.delete-btn').forEach(btn => {
-    btn.onclick = async () => {
-      await fetch(`/api/materials/${btn.dataset.id}`, { method: 'DELETE' });
+  // delete
+  document.querySelectorAll('.delete-btn').forEach(b=>{
+    b.onclick = async ()=> {
+      await fetch(`/api/materials/${b.dataset.id}`,{ method:'DELETE' });
       loadMaterials();
     };
   });
 
-  // Úprava ceny
-  document.querySelectorAll('.edit-btn').forEach(btn => {
-    btn.onclick = async () => {
-      const oldPrice = btn.dataset.price;
-      const input = prompt('Zadejte novou cenu:', oldPrice);
-      if (input === null) return;
-      const newPrice = parseFloat(input);
-      if (isNaN(newPrice)) {
-        alert('Neplatná hodnota');
-        return;
-      }
-      await fetch(`/api/materials/${btn.dataset.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ price: newPrice })
-      });
-      loadMaterials();
+  // edit
+  document.querySelectorAll('.edit-btn').forEach(b=>{
+    b.onclick = ()=> {
+      const tr      = b.closest('tr');
+      editingId     = b.dataset.id;
+      document.getElementById('mat-form').name.value  = tr.children[1].textContent;
+      document.getElementById('mat-form').unit.value  = tr.children[2].textContent;
+      document.getElementById('mat-form').price.value = tr.children[3].textContent;
+      document.querySelector('#mat-form button').textContent = 'Uložit';
     };
   });
 }
 
-// Přidání nového materiálu
-document.getElementById('mat-form').onsubmit = async e => {
+// submit form
+document.getElementById('mat-form').onsubmit = async e=>{
   e.preventDefault();
   const f = e.target;
-  await fetch('/api/materials', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      name:  f.name.value.trim(),
-      unit:  f.unit.value.trim(),
-      price: parseFloat(f.price.value)
-    })
-  });
+  const data = {
+    name:  f.name.value.trim(),
+    unit:  f.unit.value.trim(),
+    price: parseFloat(f.price.value)
+  };
+  if (editingId) {
+    await fetch(`/api/materials/${editingId}`, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(data)
+    });
+    editingId = null;
+    e.target.querySelector('button').textContent = 'Přidat';
+  } else {
+    await fetch('/api/materials',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(data)
+    });
+  }
   f.reset();
   loadMaterials();
 };
 
-// Klikání na záhlaví pro řazení
-document.querySelectorAll('#mat-table thead th[data-sort]').forEach(th => {
+// sort headers
+document.querySelectorAll('#mat-table thead th[data-sort]').forEach(th=>{
   th.style.cursor = 'pointer';
-  th.onclick = () => {
-    const field = th.dataset.sort;
-    if (sortBy === field) {
-      sortAsc = !sortAsc;
-    } else {
-      sortBy = field;
-      sortAsc = true;
-    }
+  th.onclick = ()=> {
+    const fld = th.dataset.sort;
+    if (sortBy === fld) sortAsc = !sortAsc;
+    else { sortBy = fld; sortAsc = true; }
     loadMaterials();
   };
 });
